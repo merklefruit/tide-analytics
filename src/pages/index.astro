@@ -1,21 +1,39 @@
 ---
 import Link from "../components/core/Link.astro";
+import Section from "../components/index/Section.astro";
 import StatCard from "../components/index/StatCard.astro";
+import Table from "../components/index/Table.astro";
 import TopBar from "../components/index/TopBar.astro";
-import { APP } from "../config.mjs";
+import Network from "../components/utils/Network.astro";
+import Status from "../components/utils/Status.astro";
 import Layout from "../layouts/BaseLayout.astro";
 ---
 
 <Layout title="Home">
   <TopBar />
 
-  <div class="p-5 flex flex-col w-full bg-gray-100">
-    <h3 class="text-blue-700 font-bold text-lg lowercase">{APP.name}</h3>
-    <p class="text-gray-700 text-sm">
-      Dashboard tracking
-      <Link external href="https://www.tideprotocol.xyz">Tide Protocol</Link>
-      campaigns data.
-    </p>
+  <div class="w-full grid grid-cols-1 md:grid-cols-3 bg-gray-50 h-[140px]">
+    <div class="p-5 col-span-1 border border-gray-100">
+      <h3 class="text-blue-700 font-bold text-lg lowercase">tide analytics</h3>
+      <p class="text-gray-700 text-sm">
+        Dashboard tracking
+        <Link external href="https://www.tideprotocol.xyz">Tide Protocol</Link>
+        campaigns data.
+      </p>
+    </div>
+
+    <div class="p-5 col-span-2 hidden md:block border border-gray-100">
+      <h3 class="text-lg font-bold">
+        Want to use Tide to launch your next community discovery campaign?
+      </h3>
+      <p class="text-gray-700 text-sm max-w-xl">
+        Tide is a decentralized attention and engagement protocol that allows
+        you to launch open and fair campaigns on the blockchain. Get started
+        <Link external href="https://fiveelementslabs.gitbook.io/tide/">
+          here.
+        </Link>
+      </p>
+    </div>
   </div>
 
   <div class="w-full grid grid-cols-1 sm:grid-cols-3">
@@ -28,18 +46,77 @@ import Layout from "../layouts/BaseLayout.astro";
     <StatCard
       title="Total Participations"
       desc="Number of participation rewards distributed through campaigns."
-      data={1421}
+      data={1021}
     />
 
     <StatCard
       title="Users Onboarded"
-      desc="Number of users onboarded through campaigns."
+      desc="Number of unique users onboarded through campaigns."
       data={529}
     />
   </div>
 
-  <div class="p-5 flex flex-col w-full bg-gray-100">
-    <h3 class="text-gray-700 font-bold text-lg lowercase">Top Campaigns</h3>
-    <p class="text-gray-700 text-sm">Sorted by number of participations</p>
-  </div>
+  <Section
+    title="Top Campaigns"
+    description="Top 10 campaigns sorted by number of participants"
+  />
+
+  <Table
+    columnNames={["Campaign name", "Participants", "Network", "Status"]}
+    data={[
+      {
+        name: "Tide Superusers Wanted",
+        participants: 722,
+        status: "Active",
+        network: "Polygon",
+        link: "https://tideprotocol.xyz",
+      },
+      {
+        name: "nftperp Paper Trading Competition",
+        participants: 361,
+        status: "Active",
+        network: "Arbitrum",
+        link: "https://tideprotocol.xyz",
+      },
+      {
+        name: "Impact Fantasy Big Giveaway",
+        participants: 148,
+        status: "Ended",
+        network: "Polygon",
+        link: "https://tideprotocol.xyz",
+      },
+    ]}
+  />
+
+  <Section
+    title="Recent reward claims"
+    description="Rewards claimed sorted by latest date"
+  />
+
+  <Table
+    columnNames={["Campaign name", "user address", "Date"]}
+    data={[
+      {
+        name: "Tide Superusers Wanted",
+        participants: 722,
+        status: "Active",
+        network: "Polygon",
+        link: "https://tideprotocol.xyz",
+      },
+      {
+        name: "nftperp Paper Trading Competition",
+        participants: 361,
+        status: "Active",
+        network: "Arbitrum",
+        link: "https://tideprotocol.xyz",
+      },
+      {
+        name: "Impact Fantasy Big Giveaway",
+        participants: 148,
+        status: "Ended",
+        network: "Polygon",
+        link: "https://tideprotocol.xyz",
+      },
+    ]}
+  />
 </Layout>

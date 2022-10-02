@@ -1,0 +1,28 @@
+---
+export interface Props {
+  name: string;
+}
+
+const { name } = Astro.props;
+
+let color: string;
+
+switch (name.toLowerCase()) {
+  case "active":
+    color = "green";
+    break;
+
+  case "idle":
+    color = "yellow";
+    break;
+
+  case "ended":
+    color = "red";
+    break;
+
+  default:
+    color = "gray";
+}
+---
+
+<p style={{ color }} class="font-medium">{name}</p>

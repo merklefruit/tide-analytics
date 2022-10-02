@@ -1,0 +1,48 @@
+---
+export interface Props {
+  name: string;
+}
+
+const { name } = Astro.props;
+
+let color: string;
+
+switch (name.toLowerCase()) {
+  case "ethereum":
+    // ethereum blue
+    color = "#3C3C3D";
+    break;
+
+  case "arbitrum":
+    // arbitrum light blye
+    color = "#44A1F2";
+    break;
+
+  case "optimism":
+    // optimism red
+    color = "#F7F7F7";
+    break;
+
+  case "avalanche":
+    // avalanche red
+    color = "#FF0080";
+    break;
+
+  case "polygon":
+    // polygon purple
+    color = "#7B2CBF";
+    break;
+
+  case "fantom":
+    // fantom light blue
+    color = "#E5F4FF";
+    break;
+
+  default:
+    // default to ethereum blue
+    color = "#3C3C3D";
+    break;
+}
+---
+
+<p style={{ color }} class="font-medium">{name}</p>
