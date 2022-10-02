@@ -1,0 +1,12 @@
+---
+const { href, external = true } = Astro.props;
+---
+
+<a
+  href={href}
+  target={external ? "_blank" : ""}
+  rel={external ? "noopener noreferrer" : ""}
+  class="border-b border-dashed border-gray-500 hover:opacity-75"
+>
+  <slot />
+</a>

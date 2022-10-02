@@ -10,10 +10,10 @@ import { SITE } from "./src/config";
 export default defineConfig({
   site: SITE.origin,
   base: SITE.basePath,
-  output: "static",
+  output: "server",
 
   integrations: [
-    tailwind({ config: { applyBaseStyles: false } }),
+    tailwind({ config: { applyBaseStyles: true } }),
 
     sitemap(),
 
