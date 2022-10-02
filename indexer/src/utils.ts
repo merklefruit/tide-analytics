@@ -29,11 +29,9 @@ export function formatTransferEvent(event: TransferEvent): TransferEvent {
   return {
     from: abiCoder.decode(["address"], event.from)[0],
     to: abiCoder.decode(["address"], event.to)[0],
-    tokenId: event.tokenId
-      ? abiCoder.decode(["uint256"], event.tokenId)[0]
-      : null,
-    timestamp: event.timestamp
-      ? abiCoder.decode(["uint256"], event.timestamp)[0]
-      : null,
+    tokenId:
+      event.tokenId &&
+      abiCoder.decode(["uint256"], event.tokenId)[0].toString(),
+    timestamp: event.timestamp,
   };
 }

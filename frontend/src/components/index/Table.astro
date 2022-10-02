@@ -17,7 +17,7 @@ type RecentClaim = {
   address: string;
   date: string;
   network: string;
-  label: string;
+  tokenId: string;
 };
 
 const typeguard = (x: TopCampaign | RecentClaim): x is RecentClaim => {
@@ -28,7 +28,7 @@ const getAddressLink = (address: string, network: string) => {
   switch (network?.toLowerCase()) {
     case "ethereum":
       return `https://etherscan.io/address/${address}`;
-    case "polygon":
+    case "matic":
       return `https://polygonscan.com/address/${address}`;
     case "bsc":
       return `https://bscscan.com/address/${address}`;
@@ -80,7 +80,7 @@ const { columnNames, data } = Astro.props;
                     {object.campaign}
                   </Link>
                 </td>
-                <td class="py-2 px-4">{object.label}</td>
+                <td class="py-2 px-4">{object.tokenId}</td>
                 <td class="py-2 px-4">
                   <Network name={object.network} />
                 </td>

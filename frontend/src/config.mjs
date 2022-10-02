@@ -3,7 +3,7 @@ export const APP = {
   title: "Analytics for Tide Protocol Campaigns",
   description: "Analytics and data for Tide Protocol Campaigns",
   googleAnalytics: false, // TODO
-  githubLink: "https://github.com/",
+  githubLink: "https://github.com/nicolas-racchi/tide-analytics",
 };
 
 export const SITE = {

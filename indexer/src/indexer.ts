@@ -31,8 +31,14 @@ export default class Indexer {
     this.blockExplorerApiUrl = getBlockExplorerApiUrl(network);
     this.provider = new ethers.providers.AlchemyProvider(network, alchemyKey);
 
-    if (redisUrl) this.redis = new Redis(redisUrl);
+    if (redisUrl)
+      this.redis = new Redis(redisUrl, { tls: { rejectUnauthorized: false } });
     else this.redis = new Redis();
+  }
+
+  public async flushRedis() {
+    console.log("Flushing Redis cache");
+    return await this.redis.flushall();
   }
 
   private async collectCampaigns() {
@@ -52,6 +58,8 @@ export default class Indexer {
             chainId: cmp.chainId[0],
             startTime: cmp.startTime,
             endTime: cmp.endTime,
+            status: this.getCampaignStatus(cmp),
+            network: this.network,
             projectName: cmp.projectName,
             isPrivate: cmp.isPrivate,
             imageUrl: cmp.imageUrl,
@@ -73,8 +81,7 @@ export default class Indexer {
     }
   }
 
-  private getCampaignStatus(id: string): CampaignStatus | null {
-    const campaign = this.campaigns.find((cmp) => cmp.id === id);
+  private getCampaignStatus(campaign: Campaign): CampaignStatus | null {
     if (!campaign) return null;
 
     const now = new Date();
@@ -119,11 +126,12 @@ export default class Indexer {
       if (response.data.message !== "OK") throw new Error("API error");
 
       return response.data.result.map((log: any) => {
-        return {
+        return formatTransferEvent({
           from: log.topics[1],
           to: log.topics[2],
           tokenId: log.topics[3]?.toString(),
-        };
+          timestamp: log?.timeStamp,
+        });
       });
     } catch (err) {
       console.error("Error while fetching transfer events from explorer");
@@ -146,14 +154,17 @@ export default class Indexer {
         toBlock: toBlock || "latest",
       });
 
-      return logs.map((log) => {
+      const transfers = logs.map((log) => {
         const parsedLog = contract.interface.parseLog(log);
-        return formatTransferEvent({
+        const rawTransfer = {
           from: parsedLog.args[0],
           to: parsedLog.args[1],
           tokenId: parsedLog.args[2].toString(),
-        });
+        };
+        return formatTransferEvent(rawTransfer);
       });
+
+      return transfers;
     } catch (err) {
       console.error("Error while fetching transfer events from RPC");
       console.error(err);
@@ -162,7 +173,7 @@ export default class Indexer {
   }
 
   private async getAllTransfers(campaign: Campaign): Promise<TransferEvent[]> {
-    const campaignStatus = this.getCampaignStatus(campaign.id);
+    const campaignStatus = this.getCampaignStatus(campaign);
     if (campaignStatus === "idle") return [];
 
     const campaignContract = new ethers.Contract(
@@ -210,15 +221,21 @@ export default class Indexer {
     }
   }
 
-  private async saveTransfersToRedis(
+  private async saveParticipationsToRedis(
     transfers: TransferEvent[],
-    campaignId: string
+    campaign: Campaign
   ) {
-    const key = `transfers:${campaignId}`;
-    const values = transfers.map((transfer) => JSON.stringify(transfer));
+    const title = campaign.title;
+    const link = `https://tideprotocol.xyz/users/campaign/${campaign.id}`;
+    const network = this.network;
+
+    const key = `transfers:${campaign.id}`;
+    const values = transfers.map((transfer) =>
+      JSON.stringify({ ...transfer, title, link, network })
+    );
     await this.redis.rpush(key, ...values);
 
-    const key2 = `transfers:length:${campaignId}`;
+    const key2 = `transfers:length:${campaign.id}`;
     await this.redis.set(key2, transfers.length);
   }
 
@@ -238,7 +255,7 @@ export default class Indexer {
   }
 
   private async indexCampaign(campaign: Campaign) {
-    if (this.getCampaignStatus(campaign.id) === "idle")
+    if (this.getCampaignStatus(campaign) === "idle")
       return console.log(`CID: ${campaign.id} is idle, skipping indexing`);
 
     const transfers = await this.getAllTransfers(campaign);
@@ -246,10 +263,7 @@ export default class Indexer {
 
     console.log(`CID: ${campaign.id}: ${transfers.length} transfers found.`);
 
-    if (await this.shouldUpdateTransfers(campaign.id, transfers.length)) {
-      console.log(`CID: ${campaign.id}: new transfers, updating Redis...`);
-      await this.saveTransfersToRedis(transfers, campaign.id);
-    } else console.log(`CID: ${campaign.id}: no new transfers.`);
+    await this.saveParticipationsToRedis(transfers, campaign);
   }
 
   public async indexAllCampaigns() {

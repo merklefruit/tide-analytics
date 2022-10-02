@@ -21,6 +21,8 @@ async function main() {
   const arbitrum = new Indexer("arbitrum", ALCHEMY_ARBITRUM_KEY, REDIS_URL);
   const matic = new Indexer("matic", ALCHEMY_MATIC_KEY, REDIS_URL);
 
+  await arbitrum.flushRedis();
+
   await arbitrum.indexAllCampaigns();
   await matic.indexAllCampaigns();
 }

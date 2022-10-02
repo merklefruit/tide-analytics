@@ -1,10 +1,55 @@
 ---
+import Redis from 'ioredis';
+
 import Link from "../components/core/Link.astro";
 import Section from "../components/index/Section.astro";
 import StatCard from "../components/index/StatCard.astro";
 import Table from "../components/index/Table.astro";
 import TopBar from "../components/index/TopBar.astro";
 import Layout from "../layouts/BaseLayout.astro";
+
+const redis = new Redis(import.meta.env.REDIS_URL, { tls: { rejectUnauthorized: false } });
+
+const campaignkeys = ["campaigns:arbitrum", "campaigns:matic"];
+const lengthKey = "transfers:length:";
+const transfersKey = "transfers:";
+
+const rawCampaigns = await Promise.all(campaignkeys.map((key) => redis.lrange(key, 0, -1)));
+const campaigns = rawCampaigns.flat().map((campaign) => JSON.parse(campaign));
+const campaignIds: string[] = campaigns.map((campaign) => campaign.id);
+
+const formattedCampaigns = await Promise.all(campaigns.map(async (cmp) => {
+  return {
+        name: cmp.title,
+        participants: Number(await redis.get(lengthKey + cmp.id) || 0),
+        status: cmp.status || "idle",
+        network: cmp.network || "unknown",
+        link: `https://tideprotocol.xyz/users/campaign/${cmp.id}`,
+      }
+}));
+
+const campaignsSortedByParticipants = formattedCampaigns.sort((a, b) => b.participants - a.participants);
+const totalParticipations = formattedCampaigns.reduce((acc, cmp) => acc + cmp.participants, 0);
+
+const allClaims = await Promise.all(campaignIds.map(async (id) => {
+  const rawTransfers = await redis.lrange(transfersKey + id, 0, -1);
+  const parsedTransfers = rawTransfers.map((transfer) => JSON.parse(transfer));
+  const claims = parsedTransfers.map((transfer) => {
+    return {
+        link: transfer.link,
+        address: transfer.to,
+        campaign: transfer.title,
+        network: transfer.network,
+        tokenId: transfer.tokenId || "0",
+        date: new Date(parseInt(transfer.timestamp, 16) * 1000).toLocaleString(),
+      }
+  });
+  return claims;
+}));
+
+const sortedClaims = allClaims.flat().sort((a, b) => 
+  new Date(b.date).getTime() - new Date(a.date).getTime()).reverse().slice(0, 20);
+
 ---
 
 <Layout title="Home">
@@ -38,13 +83,13 @@ import Layout from "../layouts/BaseLayout.astro";
     <StatCard
       title="Campaigns Launched"
       desc="Number of campaigns launched since inception."
-      data={3}
+      data={campaignIds.length}
     />
 
     <StatCard
       title="Total Participations"
       desc="Number of participation rewards distributed through campaigns."
-      data={1021}
+      data={totalParticipations}
     />
 
     <StatCard
@@ -61,29 +106,7 @@ import Layout from "../layouts/BaseLayout.astro";
 
   <Table
     columnNames={["Campaign name", "Participants", "Network", "Status"]}
-    data={[
-      {
-        name: "Tide Superusers Wanted",
-        participants: 722,
-        status: "Active",
-        network: "Polygon",
-        link: "https://tideprotocol.xyz",
-      },
-      {
-        name: "nftperp Paper Trading Competition",
-        participants: 361,
-        status: "Active",
-        network: "Arbitrum",
-        link: "https://tideprotocol.xyz",
-      },
-      {
-        name: "Impact Fantasy Big Giveaway",
-        participants: 148,
-        status: "Ended",
-        network: "Polygon",
-        link: "https://tideprotocol.xyz",
-      },
-    ]}
+    data={campaignsSortedByParticipants}
   />
 
   <Section
@@ -95,84 +118,11 @@ import Layout from "../layouts/BaseLayout.astro";
     columnNames={[
       "User address",
       "Campaign name",
-      "Reward label",
+      "Reward token id",
       "Network",
       "Date",
     ]}
-    data={[
-      {
-        campaign: "Tide Superusers Wanted",
-        link: "https://tideprotocol.xyz",
-        address: "0x52A1bd7F055bAc106ce91BE3A035BF4D045CD4cB",
-        date: "2021-09-01",
-        network: "Polygon",
-        label: "reward-participant",
-      },
-      {
-        campaign: "nftperp Paper Trading Competition",
-        link: "https://tideprotocol.xyz",
-        address: "0x52A1bd7F055bAc106ce91BE3A035BF4D045CD4cB",
-        date: "2021-09-01",
-        network: "Arbitrum",
-        label: "premium-whale",
-      },
-      {
-        campaign: "Impact Fantasy Big Giveaway",
-        link: "https://tideprotocol.xyz",
-        address: "0x52A1bd7F055bAc106ce91BE3A035BF4D045CD4cB",
-        date: "2021-09-01",
-        network: "Polygon",
-        label: "gold",
-      },
-      {
-        campaign: "Tide Superusers Wanted",
-        link: "https://tideprotocol.xyz",
-        address: "0x52A1bd7F055bAc106ce91BE3A035BF4D045CD4cB",
-        date: "2021-09-01",
-        network: "Polygon",
-        label: "reward-participant",
-      },
-      {
-        campaign: "nftperp Paper Trading Competition",
-        link: "https://tideprotocol.xyz",
-        address: "0x52A1bd7F055bAc106ce91BE3A035BF4D045CD4cB",
-        date: "2021-09-01",
-        network: "Arbitrum",
-        label: "premium-whale",
-      },
-      {
-        campaign: "Impact Fantasy Big Giveaway",
-        link: "https://tideprotocol.xyz",
-        address: "0x52A1bd7F055bAc106ce91BE3A035BF4D045CD4cB",
-        date: "2021-09-01",
-        network: "Polygon",
-        label: "gold",
-      },
-      {
-        campaign: "Tide Superusers Wanted",
-        link: "https://tideprotocol.xyz",
-        address: "0x52A1bd7F055bAc106ce91BE3A035BF4D045CD4cB",
-        date: "2021-09-01",
-        network: "Polygon",
-        label: "reward-participant",
-      },
-      {
-        campaign: "nftperp Paper Trading Competition",
-        link: "https://tideprotocol.xyz",
-        address: "0x52A1bd7F055bAc106ce91BE3A035BF4D045CD4cB",
-        date: "2021-09-01",
-        network: "Arbitrum",
-        label: "premium-whale",
-      },
-      {
-        campaign: "Impact Fantasy Big Giveaway",
-        link: "https://tideprotocol.xyz",
-        address: "0x52A1bd7F055bAc106ce91BE3A035BF4D045CD4cB",
-        date: "2021-09-01",
-        network: "Polygon",
-        label: "gold",
-      },
-    ]}
+    data={sortedClaims}
   />
 
   <Section

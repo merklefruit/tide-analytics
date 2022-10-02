@@ -19,6 +19,6 @@ export type CampaignStatus = "active" | "ended" | "idle";
 export type TransferEvent = {
   from: string;
   to: string;
-  tokenId?: string | null;
-  timestamp?: string;
+  tokenId?: string;
+  timestamp?: string | number;
 };
