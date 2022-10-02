@@ -8,5 +8,5 @@ export const APP = {
 
 export const SITE = {
   origin: "http://localhost:3000",
-  basePath: "/",
+  basePath: "/frontend",
 };
