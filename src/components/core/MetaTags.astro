@@ -1,0 +1,27 @@
+---
+import { APP } from "../../config.mjs";
+
+const {
+  title,
+  description = APP.description,
+  ogTitle = title,
+  ogType = "website",
+} = Astro.props;
+
+const fullTitle = title ? title + " | " + APP.name : APP.name;
+const fullOgTitle = ogTitle ? ogTitle + " | " + APP.name : APP.name;
+---
+
+<title>{fullTitle}</title>
+<meta name="description" content={description} />
+
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="generator" content={Astro.generator} />
+
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content={fullOgTitle} />
+<meta name="twitter:description" content={description} />
+
+<meta property="og:title" content={fullOgTitle} />
+<meta property="og:type" content={ogType} />
