@@ -19,6 +19,7 @@
     "@nanostores/preact": "^0.3.1",
     "astro": "^1.4.2",
     "astro-icon": "^0.7.3",
+    "graphql-request": "^5.0.0",
     "ioredis": "^5.2.3",
     "nanostores": "^0.7.0",
     "preact": "^10.11.0",

@@ -1,55 +1,72 @@
 ---
-import Redis from 'ioredis';
+import { gql } from "graphql-request"
 
-import Link from "../components/core/Link.astro";
-import Section from "../components/index/Section.astro";
-import StatCard from "../components/index/StatCard.astro";
-import Table from "../components/index/Table.astro";
-import TopBar from "../components/index/TopBar.astro";
-import Layout from "../layouts/BaseLayout.astro";
+import Link from "../components/core/Link.astro"
+import Section from "../components/index/Section.astro"
+import StatCard from "../components/index/StatCard.astro"
+import Table from "../components/index/Table.astro"
+import TopBar from "../components/index/TopBar.astro"
+import Layout from "../layouts/BaseLayout.astro"
 
-const redis = new Redis(import.meta.env.REDIS_URL, { tls: { rejectUnauthorized: false } });
+import { TRANSFERS_KEY, TRANSFERS_LENGTH_KEY, CAMPAIGN_KEYS } from "../lib/redis/keys"
+import { GraphQLProvider } from "../lib/graphql"
+import { redis } from "../lib/redis"
 
-const campaignkeys = ["campaigns:arbitrum", "campaigns:matic"];
-const lengthKey = "transfers:length:";
-const transfersKey = "transfers:";
+const rawCampaigns = await Promise.all(CAMPAIGN_KEYS.map((k) => redis.lrange(k, 0, -1)))
+const campaigns = rawCampaigns.flat().map((campaign) => JSON.parse(campaign))
+const campaignIds: string[] = campaigns.map((campaign) => campaign.id)
 
-const rawCampaigns = await Promise.all(campaignkeys.map((key) => redis.lrange(key, 0, -1)));
-const campaigns = rawCampaigns.flat().map((campaign) => JSON.parse(campaign));
-const campaignIds: string[] = campaigns.map((campaign) => campaign.id);
-
-const formattedCampaigns = await Promise.all(campaigns.map(async (cmp) => {
-  return {
-        name: cmp.title,
-        participants: Number(await redis.get(lengthKey + cmp.id) || 0),
-        status: cmp.status || "idle",
-        network: cmp.network || "unknown",
-        link: `https://tideprotocol.xyz/users/campaign/${cmp.id}`,
-      }
-}));
-
-const campaignsSortedByParticipants = formattedCampaigns.sort((a, b) => b.participants - a.participants);
-const totalParticipations = formattedCampaigns.reduce((acc, cmp) => acc + cmp.participants, 0);
-
-const allClaims = await Promise.all(campaignIds.map(async (id) => {
-  const rawTransfers = await redis.lrange(transfersKey + id, 0, -1);
-  const parsedTransfers = rawTransfers.map((transfer) => JSON.parse(transfer));
-  const claims = parsedTransfers.map((transfer) => {
+const formattedCampaigns = await Promise.all(
+  campaigns.map(async (cmp) => {
     return {
-        link: transfer.link,
-        address: transfer.to,
-        campaign: transfer.title,
-        network: transfer.network,
-        tokenId: transfer.tokenId || "0",
-        date: new Date(parseInt(transfer.timestamp, 16) * 1000).toLocaleString(),
-      }
-  });
-  return claims;
-}));
+      name: cmp.title,
+      participants: Number((await redis.get(TRANSFERS_LENGTH_KEY + cmp.id)) || 0),
+      status: cmp.status || "idle",
+      network: cmp.network || "unknown",
+      link: `https://tideprotocol.xyz/users/campaign/${cmp.id}`,
+    }
+  })
+)
 
-const sortedClaims = allClaims.flat().sort((a, b) => 
-  new Date(b.date).getTime() - new Date(a.date).getTime()).reverse().slice(0, 20);
+const campaignsSortedByParticipants = formattedCampaigns.sort(
+  (a, b) => b.participants - a.participants
+)
+const totalParticipations = formattedCampaigns.reduce(
+  (acc, cmp) => acc + cmp.participants,
+  0
+)
 
+const allClaims = (
+  await Promise.all(
+    campaignIds.map(async (id) => {
+      const rawTransfers = await redis.lrange(TRANSFERS_KEY + id, 0, -1)
+      const parsedTransfers = rawTransfers.map((transfer) => JSON.parse(transfer))
+      const claims = parsedTransfers.map((transfer) => {
+        return {
+          link: transfer.link,
+          address: transfer.to,
+          campaign: transfer.title,
+          network: transfer.network,
+          tokenId: transfer.tokenId || "0",
+          date: new Date(parseInt(transfer.timestamp, 16) * 1000),
+        }
+      })
+      return claims
+    })
+  )
+).flat()
+
+const sortedClaims = allClaims
+  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  .slice(0, 30)
+  .map((claim) => {
+    return {
+      ...claim,
+      date: claim.date.toLocaleString(),
+    }
+  })
+
+const uniqueUsers = new Set(allClaims.map((claim) => claim.address)).size
 ---
 
 <Layout title="Home">
@@ -70,11 +87,9 @@ const sortedClaims = allClaims.flat().sort((a, b) =>
         Want to use Tide to launch your next community discovery campaign?
       </h3>
       <p class="text-gray-700 text-sm max-w-xl">
-        Tide is a decentralized attention and engagement protocol that allows
-        you to launch open and fair campaigns on the blockchain. Get started
-        <Link external href="https://fiveelementslabs.gitbook.io/tide/">
-          here.
-        </Link>
+        Tide is a decentralized attention and engagement protocol that allows you to
+        launch open and fair campaigns on the blockchain. Get started
+        <Link external href="https://fiveelementslabs.gitbook.io/tide/">here.</Link>
       </p>
     </div>
   </div>
@@ -95,7 +110,7 @@ const sortedClaims = allClaims.flat().sort((a, b) =>
     <StatCard
       title="Users Onboarded"
       desc="Number of unique users onboarded through campaigns."
-      data={529}
+      data={uniqueUsers}
     />
   </div>
 
@@ -115,18 +130,9 @@ const sortedClaims = allClaims.flat().sort((a, b) =>
   />
 
   <Table
-    columnNames={[
-      "User address",
-      "Campaign name",
-      "Reward token id",
-      "Network",
-      "Date",
-    ]}
+    columnNames={["User address", "Campaign name", "Reward token id", "Network", "Date"]}
     data={sortedClaims}
   />
 
-  <Section
-    title="Audience data"
-    description="All the current audiences sorted by size"
-  />
+  <Section title="Audience data" description="All the current audiences sorted by size" />
 </Layout>
