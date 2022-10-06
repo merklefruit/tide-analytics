@@ -15,23 +15,34 @@ export default class Aggregator {
     else this.redis = new Redis()
   }
 
-  private async fetchCampaignIds() {
+  public async fetchCampaignIds() {
     const keys = await this.redis.keys("campaigns:*")
     const values = await Promise.all(keys.map((key) => this.redis.lrange(key, 0, -1)))
     const campaigns: Campaign[] = values.flat().map((value) => value && JSON.parse(value))
     const campaignIds = campaigns.map((campaign) => campaign.id)
     this.campaigns = campaigns
     this.stats.campaignIds = campaignIds
+    return campaignIds
   }
 
-  private async calculatetotalParticipations() {
+  public async calculatetotalParticipations() {
     const keys = await this.redis.keys("transfers:length:*")
     const values = await this.redis.mget(...keys)
     const total = values.reduce((acc, val) => acc + parseInt(val || "0"), 0)
     this.stats.totalParticipations = total
   }
 
-  public async getLast20ClaimsSortedByDate() {
+  public async fetchCurrentClaimsMap() {
+    if (!this.stats.campaignIds) throw new Error("Campaign ids not found")
+
+    return Promise.all(
+      this.stats.campaignIds.map(async (cid) => {
+        return { cid, claims: await this.redis.get(`transfers:length:${cid}`) }
+      })
+    )
+  }
+
+  private async getAllClaims() {
     const campaignsFullData = await Promise.all(
       this.campaigns.map(async (campaign) => {
         const network = fromChainIdToNetworkName((campaign as any).chainId)
@@ -55,20 +66,20 @@ export default class Aggregator {
       })
     )
 
-    const claims = campaignsFullData.map(({ transfers }) => transfers).flat()
-    const uniqueUsers = new Set(claims.map((claim) => claim.address)).size
+    return campaignsFullData.map(({ transfers }) => transfers).flat()
+  }
 
+  public async getLast20ClaimsSortedByDate() {
+    const claims = await this.getAllClaims()
+    const uniqueUsers = new Set(claims.map((claim) => claim.address)).size
     claims.sort(({ date: a }, { date: b }) => a.getTime() - b.getTime())
 
-    this.stats.last20ClaimsSortedByDate = claims.slice(0, 20)
+    this.stats.last20ClaimsSortedByDate = claims.reverse().slice(0, 20)
     this.stats.uniqueUsers = uniqueUsers
   }
 
   private async getTop10CampaignsSortedByParticipants() {
-    const campaignIds = this.stats.campaignIds
-    if (!campaignIds) throw new Error("Campaign ids not found")
-
-    const keys = campaignIds.map((id) => `campaigns:${id}`)
+    const keys = await this.redis.keys("campaigns:*")
     const values = await Promise.all(keys.map((key) => this.redis.lrange(key, 0, -1)))
     const campaigns: Campaign[] = values.flat().map((value) => JSON.parse(value))
 
@@ -83,19 +94,24 @@ export default class Aggregator {
         return { ...campaign, participants, status, network, link }
       })
     )
-    const sortedCampaigns = campaignsFull.sort(
-      ({ participants: a }, { participants: b }) => b - a
-    )
 
-    this.stats.top10CampaignsSortedByParticipants = sortedCampaigns.slice(0, 10)
+    campaignsFull.sort(({ participants: a }, { participants: b }) => b - a)
+    this.stats.top10CampaignsSortedByParticipants = campaignsFull.slice(0, 10)
   }
 
   private async uploadStats() {
     await this.redis.set("stats", JSON.stringify(this.stats))
   }
 
+  private async flushStats() {
+    await this.redis.del("stats")
+  }
+
   public async calculateStats() {
     console.log("Calculating stats...")
+
+    // Remove old stats
+    await this.flushStats()
 
     // Fetch all relevant stats
     await this.fetchCampaignIds()

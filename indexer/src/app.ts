@@ -19,16 +19,29 @@ async function main() {
   )
     throw new Error("Missing Environment variables, check your .env file!")
 
+  // Create indexers for desired networks
   const arbitrum = new Indexer("arbitrum", ALCHEMY_ARBITRUM_KEY, REDIS_URL)
   const matic = new Indexer("matic", ALCHEMY_MATIC_KEY, REDIS_URL)
 
+  const indexers = [arbitrum, matic]
+
+  // On the first run, flush the Redis cache
   await arbitrum.flushRedis()
 
-  await arbitrum.indexAllCampaigns()
-  await matic.indexAllCampaigns()
+  // Then start indexing campaigns for all supported networks
+  await Promise.all(indexers.map((idx) => idx.indexAllCampaigns()))
 
-  const agg = new Aggregator(REDIS_URL)
-  await agg.calculateStats()
+  // Start aggregating statistics for indexed campaigns cached on Redis
+  const aggregator = new Aggregator(REDIS_URL)
+  await aggregator.calculateStats()
+
+  // Start the task to check for new claims periodically every 5 minutes
+  while (true) {
+    await Promise.all(indexers.map((idx) => idx.indexAllCampaigns({ onlyUpdate: true })))
+    await aggregator.calculateStats()
+
+    await new Promise((resolve) => setTimeout(resolve, 5 * 60 * 1000))
+  }
 }
 
 main()

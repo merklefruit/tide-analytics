@@ -15,7 +15,7 @@ export function fromNetworkNameToChainId(network: SupportedNetwork): number {
 }
 
 export function fromChainIdToNetworkName(chainId: number): SupportedNetwork {
-  switch (chainId) {
+  switch (Number(chainId)) {
     case 42161:
       return "arbitrum"
     case 137:

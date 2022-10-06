@@ -1,4 +1,6 @@
 ---
+import { formatDistance } from "date-fns"
+
 import Link from "../core/Link.astro"
 import Network from "../utils/Network.astro"
 import Status from "../utils/Status.astro"
@@ -82,7 +84,9 @@ const { columnNames, data } = Astro.props
                 <td class="py-2 px-4">
                   <Network name={object.network} />
                 </td>
-                <td class="py-2 px-4">{object.date}</td>
+                <td class="py-2 px-4">
+                  {formatDistance(new Date(object.date), new Date(), { addSuffix: true })}
+                </td>
               </tr>
             )
           else

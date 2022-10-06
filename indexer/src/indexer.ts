@@ -39,21 +39,22 @@ export default class Indexer {
   public async collectCampaigns() {
     try {
       const campaignsResponse = await axios.get(GET_ALL_CAMPAIGNS_URL)
-      const campaigns = campaignsResponse.data.campaigns
+      const campaigns = campaignsResponse.data.campaigns as Campaign[]
+
       const campaignsOnCurrentNetwork: Campaign[] = campaigns
-        .filter((campaign: Campaign) =>
+        .filter((campaign) =>
           campaign.chainId.includes(fromNetworkNameToChainId(this.network))
         )
         // mapping the object from the API response to custom Campaign type
-        .map((cmp: any) => {
+        .map((cmp) => {
           return {
             title: cmp.title,
             description: cmp.description,
             id: cmp.id,
-            chainId: cmp.chainId[0],
+            chainId: cmp.chainId,
             startTime: cmp.startTime,
             endTime: cmp.endTime,
-            status: this.getCampaignStatus(cmp),
+            status: this.getCampaignStatus(cmp) || "idle",
             network: this.network,
             projectName: cmp.projectName,
             isPrivate: cmp.isPrivate,
@@ -68,6 +69,7 @@ export default class Indexer {
 
       const campaignsKey = `campaigns:${this.network}`
       const campaignsValues = this.campaigns.map((cmp) => JSON.stringify(cmp))
+      await this.redis.del(campaignsKey)
       await this.redis.rpush(campaignsKey, ...campaignsValues)
     } catch (err) {
       console.error("Error while fetching campaigns on ", this.network)
@@ -154,7 +156,7 @@ export default class Indexer {
     }
   }
 
-  private async getAllTransfers(campaign: Campaign): Promise<ParsedTransferEvent[]> {
+  public async getAllTransfers(campaign: Campaign): Promise<ParsedTransferEvent[]> {
     const campaignStatus = this.getCampaignStatus(campaign)
     if (campaignStatus === "idle") return []
 
@@ -206,6 +208,7 @@ export default class Indexer {
 
     const key = `transfers:${campaign.id}`
     const values = transfers.map((t) => JSON.stringify({ ...t, title, link, network }))
+    await this.redis.del(key)
     await this.redis.rpush(key, ...values)
 
     const key2 = `transfers:length:${campaign.id}`
@@ -218,7 +221,7 @@ export default class Indexer {
     return value ? parseInt(value) : 0
   }
 
-  private async shouldUpdateTransfers(
+  public async shouldUpdateTransfers(
     campaignId: string,
     eventsFound: number
   ): Promise<boolean> {
@@ -227,21 +230,29 @@ export default class Indexer {
     else return false
   }
 
-  public async indexCampaign(campaign: Campaign) {
+  public async indexCampaign(campaign: Campaign, onlyUpdate: boolean) {
     if (this.getCampaignStatus(campaign) === "idle")
       return console.log(`CID: ${campaign.id} is idle, skipping indexing`)
 
     const transfers = await this.getAllTransfers(campaign)
     if (!transfers) return console.log(`CID: ${campaign.id} has no transfers`)
+    else console.log(`CID: ${campaign.id}: ${transfers.length} transfers found.`)
 
-    console.log(`CID: ${campaign.id}: ${transfers.length} transfers found.`)
+    if (onlyUpdate) {
+      const shouldUpdate = await this.shouldUpdateTransfers(campaign.id, transfers.length)
+      if (!shouldUpdate) return console.log(`CID: ${campaign.id} is up to date.`)
+    }
 
     await this.saveParticipationsToRedis(transfers, campaign)
   }
 
-  public async indexAllCampaigns() {
+  public async indexAllCampaigns({ onlyUpdate = false } = {}) {
+    if (onlyUpdate) console.log("Running in update mode...")
+
     await this.collectCampaigns()
-    await Promise.all(this.campaigns.map((campaign) => this.indexCampaign(campaign)))
+    await Promise.all(
+      this.campaigns.map((cmp) => this.indexCampaign(cmp, onlyUpdate ?? false))
+    )
 
     console.log("Indexing finished for ", this.network)
   }
