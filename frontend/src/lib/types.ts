@@ -1,10 +1,12 @@
+// Copy-pasted from indexer/types.ts
+
 export type SupportedNetwork = "arbitrum" | "matic"
 
 export type Campaign = {
   title: string
   description: string
   id: string
-  chainId: number[]
+  chainId: number
   startTime: string
   endTime: string
   projectName: string
@@ -15,6 +17,7 @@ export type Campaign = {
   participants?: number
   status?: CampaignStatus
   network?: SupportedNetwork
+  link?: string
 }
 
 export type CampaignStatus = "active" | "ended" | "idle"

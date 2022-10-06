@@ -1,7 +1,9 @@
 import { ethers } from "ethers";
 
 import { ABI_CODER } from "./constants";
-import { ParsedTransferEvent, RawTransferEvent, SupportedNetwork } from "./types";
+import {
+    Campaign, CampaignStatus, ParsedTransferEvent, RawTransferEvent, SupportedNetwork
+} from "./types";
 
 export function fromNetworkNameToChainId(network: SupportedNetwork): number {
   switch (network) {
@@ -9,6 +11,18 @@ export function fromNetworkNameToChainId(network: SupportedNetwork): number {
       return 42161
     case "matic":
       return 137
+  }
+}
+
+export function fromChainIdToNetworkName(chainId: number): SupportedNetwork {
+  switch (chainId) {
+    case 42161:
+      return "arbitrum"
+    case 137:
+      return "matic"
+
+    default:
+      throw new Error(`Unsupported chainId: ${chainId}`)
   }
 }
 
@@ -22,6 +36,27 @@ export function getBlockExplorerApiUrl(network: SupportedNetwork): string {
     case "matic":
       return `https://api.polygonscan.com/api?apikey=${POLYGONSCAN_API_KEY}`
   }
+}
+
+export function getBlockExplorerPublicUrl(network: SupportedNetwork): string {
+  switch (network) {
+    case "arbitrum":
+      return "https://arbiscan.io"
+    case "matic":
+      return "https://polygonscan.com"
+  }
+}
+
+export function getCampaignStatus(campaign: Campaign): CampaignStatus | undefined {
+  if (!campaign) return undefined
+
+  const now = new Date()
+  const startTime = new Date(campaign.startTime)
+  const endTime = new Date(campaign.endTime)
+
+  if (now < startTime) return "idle"
+  else if (now > endTime) return "ended"
+  else return "active"
 }
 
 export function parseTransferEvent(event: RawTransferEvent): ParsedTransferEvent {

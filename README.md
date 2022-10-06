@@ -1,5 +1,5 @@
-# Tide Protocol Analytics Dashboard
+# Tide Protocol Minimal Analytics Dashboard
 
-Made with Astro, Redis and Prisma
+Made with Astro & Redis.
 
-Design is Heavily inspired by <https://file.app> and <https://mevboost.org>.
+The minimal design is heavily inspired by <https://file.app> and <https://mevboost.org>.

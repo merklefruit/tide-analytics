@@ -1,5 +1,6 @@
 import "dotenv/config";
 
+import Aggregator from "./aggregator";
 import Indexer from "./indexer";
 
 async function main() {
@@ -25,6 +26,14 @@ async function main() {
 
   await arbitrum.indexAllCampaigns()
   await matic.indexAllCampaigns()
+
+  const agg = new Aggregator(REDIS_URL)
+  await agg.calculateStats()
 }
 
 main()
+  .then(() => process.exit(0))
+  .catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })

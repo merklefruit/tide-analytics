@@ -21,7 +21,7 @@ export default class Indexer {
   private campaigns: Campaign[] = []
 
   constructor(network: SupportedNetwork, alchemyKey: string, redisUrl?: string) {
-    console.log("Creating indexer for", network, "with Alchemy")
+    console.log("Creating indexer for", network)
 
     this.network = network
     this.blockExplorerApiUrl = getBlockExplorerApiUrl(network)
