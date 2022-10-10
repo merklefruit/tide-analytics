@@ -25,20 +25,23 @@ async function main() {
 
   const indexers = [arbitrum, matic]
 
-  // On the first run, flush the Redis cache
+  // Create an aggregator to collect data from indexers
+  const aggregator = new Aggregator(REDIS_URL)
+
+  // Flush Redis cache before starting
   await arbitrum.flushRedis()
 
-  // Then start indexing campaigns for all supported networks
-  await Promise.all(indexers.map((idx) => idx.indexAllCampaigns()))
-
-  // Start aggregating statistics for indexed campaigns cached on Redis
-  const aggregator = new Aggregator(REDIS_URL)
-  await aggregator.calculateStats()
-
   // Start the task to check for new claims periodically every 5 minutes
+
+  let onlyUpdate = false
   while (true) {
-    await Promise.all(indexers.map((idx) => idx.indexAllCampaigns({ onlyUpdate: true })))
+    await indexers[0].indexAllCampaigns({ onlyUpdate })
+    await new Promise((resolve) => setTimeout(resolve, 1200))
+    await indexers[1].indexAllCampaigns({ onlyUpdate })
+    await new Promise((resolve) => setTimeout(resolve, 1200))
+
     await aggregator.calculateStats()
+    onlyUpdate = true
 
     await new Promise((resolve) => setTimeout(resolve, 5 * 60 * 1000))
   }

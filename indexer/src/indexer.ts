@@ -114,7 +114,8 @@ export default class Indexer {
         `${this.blockExplorerApiUrl}&module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&address=${contract.address}&topic1=0x0000000000000000000000000000000000000000000000000000000000000000`
       )
 
-      if (apiResponse.data.message !== "OK") throw new Error("API error")
+      if (apiResponse.data.message !== "OK")
+        throw new Error(`API error: ${apiResponse?.data?.result}`)
 
       const parsedTransfers = apiResponse.data.result.map(parseTransferEvent)
       return parsedTransfers
@@ -250,9 +251,11 @@ export default class Indexer {
     if (onlyUpdate) console.log("Running in update mode...")
 
     await this.collectCampaigns()
-    await Promise.all(
-      this.campaigns.map((cmp) => this.indexCampaign(cmp, onlyUpdate ?? false))
-    )
+
+    for (const campaign of this.campaigns) {
+      await this.indexCampaign(campaign, onlyUpdate)
+      await new Promise((resolve) => setTimeout(resolve, 1200))
+    }
 
     console.log("Indexing finished for ", this.network)
   }
