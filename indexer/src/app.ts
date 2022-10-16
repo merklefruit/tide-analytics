@@ -1,7 +1,7 @@
-import "dotenv/config";
+import "dotenv/config"
 
-import Aggregator from "./aggregator";
-import Indexer from "./indexer";
+import Aggregator from "./aggregator"
+import Indexer from "./indexer"
 
 async function main() {
   const ALCHEMY_ARBITRUM_KEY = process.env.ALCHEMY_ARBITRUM_KEY

@@ -7,6 +7,7 @@ import { GET_ALL_CAMPAIGNS_URL, TRANSFER_EVENT_ABI } from "./constants"
 import {
   fromNetworkNameToChainId,
   getBlockExplorerApiUrl,
+  getFuzzyTimestampFromBlockNumber,
   parseTransferEvent,
 } from "./utils"
 
@@ -163,7 +164,15 @@ export default class Indexer extends Logger {
       })
 
       this.debug(`Found ${logs.length} transfer events`)
-      const transfers = logs.map(parseTransferEvent)
+
+      const transfers = logs.map(parseTransferEvent).map((transfer) => {
+        transfer.timestamp = getFuzzyTimestampFromBlockNumber(
+          Number(transfer.blockNumber || 0),
+          this.network
+        )
+        return transfer
+      })
+
       return transfers
     } catch (err: any) {
       this.error("Error while fetching transfer events from RPC")
@@ -182,6 +191,8 @@ export default class Indexer extends Logger {
       this.provider
     )
 
+    let endBlock: number | "latest" = "latest"
+
     try {
       const startBlock = await this.getBlockNumberByTimestamp(
         new Date(campaign.startTime).getTime() / 1000
@@ -191,21 +202,19 @@ export default class Indexer extends Logger {
         throw new Error(`Could not find start block for campaign ${campaign.id}`)
 
       if (campaignStatus === "ended") {
-        const endBlock = await this.getBlockNumberByTimestamp(
+        endBlock = await this.getBlockNumberByTimestamp(
           new Date(campaign.endTime).getTime() / 1000
         )
 
         if (!endBlock)
           throw new Error(`Could not find end block for campaign ${campaign.id}`)
-
-        return await this.queryTransferEventsFromExplorer(
-          campaignContract,
-          startBlock,
-          endBlock
-        )
-      } else {
-        return await this.queryTransferEventsFromExplorer(campaignContract, startBlock)
       }
+
+      return await this.queryTransferEventsFromExplorer(
+        campaignContract,
+        startBlock,
+        endBlock
+      )
     } catch (err: any) {
       this.error(`Error while fetching transfers on ${this.network}`)
       this.error(`Campaign title: ${campaign.title}`)
