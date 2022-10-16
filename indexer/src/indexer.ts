@@ -1,9 +1,13 @@
-import axios from "axios";
-import { Contract, ethers } from "ethers";
-import Redis from "ioredis";
+import axios from "axios"
+import { Contract, ethers } from "ethers"
+import Redis from "ioredis"
 
-import { GET_ALL_CAMPAIGNS_URL, TRANSFER_EVENT_ABI } from "./constants";
-import { fromNetworkNameToChainId, getBlockExplorerApiUrl, parseTransferEvent } from "./utils";
+import { GET_ALL_CAMPAIGNS_URL, TRANSFER_EVENT_ABI } from "./constants"
+import {
+  fromNetworkNameToChainId,
+  getBlockExplorerApiUrl,
+  parseTransferEvent,
+} from "./utils"
 
 import type {
   Campaign,

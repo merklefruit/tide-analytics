@@ -1,6 +1,4 @@
 ---
-import { gql } from "graphql-request"
-
 import Link from "../components/core/Link.astro"
 import Section from "../components/index/Section.astro"
 import StatCard from "../components/index/StatCard.astro"
@@ -8,14 +6,13 @@ import Table from "../components/index/Table.astro"
 import TopBar from "../components/index/TopBar.astro"
 import Layout from "../layouts/BaseLayout.astro"
 
-import { TRANSFERS_KEY, TRANSFERS_LENGTH_KEY, CAMPAIGN_KEYS } from "../lib/redis/keys"
-import { GraphQLProvider } from "../lib/graphql"
 import { redis } from "../lib/redis"
 
 import type { Stats } from "../lib/types"
 
 const rawStats = (await redis.get("stats")) as string
 const stats = JSON.parse(rawStats) as Stats
+
 const {
   campaignIds,
   top10CampaignsSortedByParticipants,

@@ -1,7 +1,7 @@
-import { ethers } from "ethers";
+import { ethers } from "ethers"
 
 export const GET_ALL_CAMPAIGNS_URL =
-  "https://api.tideprotocol.xyz/campaign?onlyActive=false"
+  "https://api-v2.tideprotocol.xyz/campaign?onlyActive=false"
 
 export const TRANSFER_EVENT_ABI =
   "event Transfer(address indexed from, address indexed to, uint256 tokenId)"
