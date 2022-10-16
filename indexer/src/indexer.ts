@@ -18,11 +18,12 @@ import type {
 } from "./types"
 
 export default class Indexer {
-  private provider: ethers.providers.AlchemyProvider
-  private network: SupportedNetwork
   private redis: Redis
   private blockExplorerApiUrl: string
-  private campaigns: Campaign[] = []
+
+  public provider: ethers.providers.AlchemyProvider
+  public campaigns: Campaign[] = []
+  public network: SupportedNetwork
 
   constructor(network: SupportedNetwork, alchemyKey: string, redisUrl?: string) {
     console.log("Creating indexer for", network)
@@ -32,7 +33,17 @@ export default class Indexer {
     this.provider = new ethers.providers.AlchemyProvider(network, alchemyKey)
 
     if (redisUrl) this.redis = new Redis(redisUrl, { tls: { rejectUnauthorized: false } })
-    else this.redis = new Redis()
+    else {
+      console.log("Warning: Redis URL not provided, using local Redis instance instead.")
+      console.log("Make sure you have Redis running locally on port 6379")
+      console.log("To use a remote Redis instance, set the REDIS_URL env variable")
+      this.redis = new Redis()
+    }
+  }
+
+  public kill() {
+    this.redis.disconnect()
+    this.provider.removeAllListeners()
   }
 
   public async flushRedis() {
@@ -108,7 +119,7 @@ export default class Indexer {
 
   // Note: The explorer API only returns the last 1000 events,
   // so the ideal solution is to query the RPC instead.
-  private async queryTransferEventsFromExplorer(
+  public async queryTransferEventsFromExplorer(
     contract: Contract,
     fromBlock: number,
     toBlock: number | "latest" = "latest"
@@ -130,7 +141,7 @@ export default class Indexer {
     }
   }
 
-  private async queryTransferEventsFromRpc(
+  public async queryTransferEventsFromRpc(
     contract: Contract,
     fromBlock: number,
     toBlock?: number
@@ -144,15 +155,8 @@ export default class Indexer {
         toBlock: toBlock || "latest",
       })
 
-      const transfers: ParsedTransferEvent[] = logs.map((log) => {
-        const parsedLog = contract.interface.parseLog(log)
-        return {
-          from: parsedLog.args[0],
-          to: parsedLog.args[1],
-          tokenId: parsedLog.args[2].toString(),
-        } as ParsedTransferEvent
-      })
-
+      console.log("Found", logs.length, "transfer events")
+      const transfers = logs.map(parseTransferEvent)
       return transfers
     } catch (err) {
       console.error("Error while fetching transfer events from RPC")

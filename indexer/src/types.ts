@@ -23,14 +23,14 @@ export type RawTransferEvent = {
   address: string
   topics: string[]
   data: string
-  blockNumber: string
+  blockNumber: number
   blockHash: string
-  timeStamp: string
-  gasPrice: string
-  gasUsed: string
-  logIndex: string
+  timeStamp?: string
+  gasPrice?: string
+  gasUsed?: string
+  logIndex: number
   transactionHash: string
-  transactionIndex: string
+  transactionIndex: number
 }
 
 export type GetTransferLogsResponse = {
@@ -46,6 +46,7 @@ export type ParsedTransferEvent = {
   project?: string
   address?: string
   timestamp?: string | number
+  blockNumber?: string | number
   network?: SupportedNetwork
   link?: string
   date?: Date

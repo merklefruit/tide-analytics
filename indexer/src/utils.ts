@@ -1,9 +1,11 @@
-import { ethers } from "ethers";
-
-import { ABI_CODER } from "./constants";
+import { ABI_CODER } from "./constants"
 import {
-    Campaign, CampaignStatus, ParsedTransferEvent, RawTransferEvent, SupportedNetwork
-} from "./types";
+  Campaign,
+  CampaignStatus,
+  ParsedTransferEvent,
+  RawTransferEvent,
+  SupportedNetwork,
+} from "./types"
 
 export function fromNetworkNameToChainId(network: SupportedNetwork): number {
   switch (network) {
@@ -65,6 +67,49 @@ export function parseTransferEvent(event: RawTransferEvent): ParsedTransferEvent
     to: ABI_CODER.decode(["address"], event.topics[2])[0],
     tokenId:
       event.topics[3] && ABI_CODER.decode(["uint256"], event.topics[3])[0].toString(),
-    timestamp: event.timeStamp,
+    timestamp: event?.timeStamp,
+    blockNumber: event?.blockNumber,
   }
+}
+
+export function getFuzzyBlockNumberFromTimestamp(
+  timestamp: number,
+  network: SupportedNetwork
+) {
+  const blockTime = network === "arbitrum" ? 2 : network === "matic" ? 3 : 0
+  if (blockTime === 0) throw new Error(`Unsupported network: ${network}`)
+
+  return Math.floor(timestamp / blockTime)
+}
+
+export function getFuzzyTimestampFromBlockNumber(
+  blockNumber: number,
+  network: SupportedNetwork
+) {
+  const blockTime = network === "arbitrum" ? 2.3 : network === "matic" ? 0.571 : 0
+  if (!blockTime) throw new Error(`Unsupported network: ${network}`)
+
+  const genesisTImestamp =
+    network === "arbitrum" ? 1622240000 : network === "matic" ? 1590824836 : 0
+  if (!genesisTImestamp) throw new Error(`Unsupported network: ${network}`)
+
+  return blockNumber * blockTime
+}
+
+export function getExactBlockNumberFromTimestamp(
+  timestamp: number,
+  network: SupportedNetwork
+) {
+  // TODO: implement this
+
+  return 0
+}
+
+export function getExactTimestampFromBlockNumber(
+  blockNumber: number,
+  network: SupportedNetwork
+) {
+  // TODO: implement this
+
+  return 0
 }
