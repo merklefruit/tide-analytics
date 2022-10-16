@@ -2,6 +2,7 @@ import axios from "axios"
 import { Contract, ethers } from "ethers"
 import Redis from "ioredis"
 
+import Logger from "./logger"
 import { GET_ALL_CAMPAIGNS_URL, TRANSFER_EVENT_ABI } from "./constants"
 import {
   fromNetworkNameToChainId,
@@ -13,11 +14,12 @@ import type {
   Campaign,
   CampaignStatus,
   GetTransferLogsResponse,
+  LogLevel,
   ParsedTransferEvent,
   SupportedNetwork,
 } from "./types"
 
-export default class Indexer {
+export default class Indexer extends Logger {
   private redis: Redis
   private blockExplorerApiUrl: string
 
@@ -25,8 +27,15 @@ export default class Indexer {
   public campaigns: Campaign[] = []
   public network: SupportedNetwork
 
-  constructor(network: SupportedNetwork, alchemyKey: string, redisUrl?: string) {
-    console.log("Creating indexer for", network)
+  constructor(
+    network: SupportedNetwork,
+    alchemyKey: string,
+    redisUrl?: string,
+    logLevel?: LogLevel
+  ) {
+    super(logLevel ?? "info")
+
+    this.info(`Creating indexer for ${network}`)
 
     this.network = network
     this.blockExplorerApiUrl = getBlockExplorerApiUrl(network)
@@ -34,9 +43,7 @@ export default class Indexer {
 
     if (redisUrl) this.redis = new Redis(redisUrl, { tls: { rejectUnauthorized: false } })
     else {
-      console.log("Warning: Redis URL not provided, using local Redis instance instead.")
-      console.log("Make sure you have Redis running locally on port 6379")
-      console.log("To use a remote Redis instance, set the REDIS_URL env variable")
+      this.warn("Redis URL not provided, using local Redis instance instead.")
       this.redis = new Redis()
     }
   }
@@ -47,7 +54,7 @@ export default class Indexer {
   }
 
   public async flushRedis() {
-    console.log("Flushing Redis cache")
+    this.info("Flushing Redis cache")
     return await this.redis.flushall()
   }
 
@@ -80,15 +87,15 @@ export default class Indexer {
         })
 
       this.campaigns = campaignsOnCurrentNetwork
-      console.log("Found", this.campaigns.length, "campaigns on", this.network)
+      this.debug(`Found ${this.campaigns.length} campaigns on ${this.network}`)
 
       const campaignsKey = `campaigns:${this.network}`
       const campaignsValues = this.campaigns.map((cmp) => JSON.stringify(cmp))
       await this.redis.del(campaignsKey)
       await this.redis.rpush(campaignsKey, ...campaignsValues)
-    } catch (err) {
-      console.error("Error while fetching campaigns on ", this.network)
-      console.error(err)
+    } catch (err: any) {
+      this.error(`Error while fetching campaigns on ${this.network}`)
+      this.error(err)
       this.campaigns = []
     }
   }
@@ -111,9 +118,9 @@ export default class Indexer {
         `${this.blockExplorerApiUrl}&module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`
       )
       return response.data.result
-    } catch (err) {
-      console.error("Error while fetching block number by timestamp")
-      console.error(err)
+    } catch (err: any) {
+      this.error("Error while fetching block number by timestamp")
+      this.error(err)
     }
   }
 
@@ -134,9 +141,9 @@ export default class Indexer {
 
       const parsedTransfers = apiResponse.data.result.map(parseTransferEvent)
       return parsedTransfers
-    } catch (err) {
-      console.error("Error while fetching transfer events from explorer")
-      console.error(err)
+    } catch (err: any) {
+      this.error("Error while fetching transfer events from explorer")
+      this.error(err)
       return []
     }
   }
@@ -146,7 +153,7 @@ export default class Indexer {
     fromBlock: number,
     toBlock?: number
   ): Promise<ParsedTransferEvent[]> {
-    console.log("Querying transfers from block", fromBlock)
+    this.info(`Querying transfers from block ${fromBlock}`)
 
     try {
       const logs = await this.provider.getLogs({
@@ -155,12 +162,12 @@ export default class Indexer {
         toBlock: toBlock || "latest",
       })
 
-      console.log("Found", logs.length, "transfer events")
+      this.debug(`Found ${logs.length} transfer events`)
       const transfers = logs.map(parseTransferEvent)
       return transfers
-    } catch (err) {
-      console.error("Error while fetching transfer events from RPC")
-      console.error(err)
+    } catch (err: any) {
+      this.error("Error while fetching transfer events from RPC")
+      this.error(err)
       return []
     }
   }
@@ -199,10 +206,10 @@ export default class Indexer {
       } else {
         return await this.queryTransferEventsFromExplorer(campaignContract, startBlock)
       }
-    } catch (err) {
-      console.error("Error while fetching transfers on ", this.network)
-      console.error("Campaign title: ", campaign.title)
-      console.error(err)
+    } catch (err: any) {
+      this.error(`Error while fetching transfers on ${this.network}`)
+      this.error(`Campaign title: ${campaign.title}`)
+      this.error(err)
       return []
     }
   }
@@ -241,22 +248,22 @@ export default class Indexer {
 
   public async indexCampaign(campaign: Campaign, onlyUpdate: boolean) {
     if (this.getCampaignStatus(campaign) === "idle")
-      return console.log(`CID: ${campaign.id} is idle, skipping indexing`)
+      return this.warn(`CID: ${campaign.id} is idle, skipping indexing`)
 
     const transfers = await this.getAllTransfers(campaign)
-    if (!transfers) return console.log(`CID: ${campaign.id} has no transfers`)
-    else console.log(`CID: ${campaign.id}: ${transfers.length} transfers found.`)
+    if (!transfers) return this.info(`CID: ${campaign.id} has no transfers`)
+    else this.info(`CID: ${campaign.id}: ${transfers.length} transfers found.`)
 
     if (onlyUpdate) {
       const shouldUpdate = await this.shouldUpdateTransfers(campaign.id, transfers.length)
-      if (!shouldUpdate) return console.log(`CID: ${campaign.id} is up to date.`)
+      if (!shouldUpdate) return this.info(`CID: ${campaign.id} is up to date.`)
     }
 
     await this.saveParticipationsToRedis(transfers, campaign)
   }
 
   public async indexAllCampaigns({ onlyUpdate = false } = {}) {
-    if (onlyUpdate) console.log("Running in update mode...")
+    if (onlyUpdate) this.info("Running in update mode...")
 
     await this.collectCampaigns()
 
@@ -265,6 +272,6 @@ export default class Indexer {
       await new Promise((resolve) => setTimeout(resolve, 1200))
     }
 
-    console.log("Indexing finished for ", this.network)
+    this.info(`Indexing finished for ${this.network}`)
   }
 }

@@ -1,16 +1,21 @@
-import Redis from "ioredis";
+import Redis from "ioredis"
+import Logger from "./logger"
 
-import { Campaign, ParsedTransferEvent, Stats } from "./types";
+import { Campaign, LogLevel, ParsedTransferEvent, Stats } from "./types"
 import {
-    fromChainIdToNetworkName, getBlockExplorerApiUrl, getBlockExplorerPublicUrl, getCampaignStatus
-} from "./utils";
+  fromChainIdToNetworkName,
+  getBlockExplorerPublicUrl,
+  getCampaignStatus,
+} from "./utils"
 
-export default class Aggregator {
+export default class Aggregator extends Logger {
   private redis: Redis
   private campaigns: Campaign[] = []
   private stats: Partial<Stats> = {}
 
-  constructor(redisUrl?: string) {
+  constructor(redisUrl?: string, logLevel?: LogLevel) {
+    super(logLevel ?? "info")
+
     if (redisUrl) this.redis = new Redis(redisUrl, { tls: { rejectUnauthorized: false } })
     else this.redis = new Redis()
   }
@@ -108,7 +113,7 @@ export default class Aggregator {
   }
 
   public async calculateStats() {
-    console.log("Calculating stats...")
+    this.info("Calculating stats...")
 
     // Remove old stats
     await this.flushStats()
@@ -122,6 +127,6 @@ export default class Aggregator {
     // Finally upload them to Redis for quick consumption
     await this.uploadStats()
 
-    console.log("Done calculating stats!")
+    this.info("Done calculating stats!")
   }
 }

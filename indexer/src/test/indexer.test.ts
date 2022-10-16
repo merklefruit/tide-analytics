@@ -57,21 +57,25 @@ describe("Indexer", () => {
     })
 
     test("should fetch all transfers for a specific campaign using the RPC", async () => {
-      jest.setTimeout(30000)
-
-      const campaign = indexer?.campaigns?.[0]
-      if (!campaign) throw new Error("No campaigns found!")
+      // tested campaign: 'Tide Superusers Wanted'
 
       const contract = new Contract(
-        campaign.address,
+        "0xBE861b7576e8Ea260ACc76b33CCac7358D5236a0",
         [TRANSFER_EVENT_ABI],
         indexer?.provider
       )
 
-      const claims = await indexer?.queryTransferEventsFromRpc(contract, 0)
+      const startBlock = 33376589
+      const endBlock = 34308302
+
+      const claims = await indexer?.queryTransferEventsFromRpc(
+        contract,
+        startBlock,
+        endBlock
+      )
 
       expect(claims).toBeTruthy()
-      expect(claims?.length).toBeGreaterThan(0)
+      expect(claims?.length).toBe(844)
     })
   })
 })
