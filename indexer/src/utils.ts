@@ -13,6 +13,9 @@ export function fromNetworkNameToChainId(network: SupportedNetwork): number {
       return 42161
     case "matic":
       return 137
+
+    default:
+      throw new Error(`Unsupported network: ${network}`)
   }
 }
 
@@ -72,28 +75,39 @@ export function parseTransferEvent(event: RawTransferEvent): ParsedTransferEvent
   }
 }
 
+function getBlockTime(network: SupportedNetwork) {
+  const blockTime = network === "arbitrum" ? 2.3 : network === "matic" ? 0.571 : 0
+  if (!blockTime) throw new Error(`Unsupported network: ${network}`)
+
+  return blockTime
+}
+
+function getGenesisTimestamp(network: SupportedNetwork) {
+  const genesisTImestamp =
+    network === "arbitrum" ? 1622240000 : network === "matic" ? 1590824836 : 0
+  if (!genesisTImestamp) throw new Error(`Unsupported network: ${network}`)
+
+  return genesisTImestamp
+}
+
 export function getFuzzyBlockNumberFromTimestamp(
   timestamp: number,
   network: SupportedNetwork
 ) {
-  const blockTime = network === "arbitrum" ? 2 : network === "matic" ? 3 : 0
-  if (blockTime === 0) throw new Error(`Unsupported network: ${network}`)
+  const blockTime = getBlockTime(network)
+  const genesisTimestamp = getGenesisTimestamp(network)
 
-  return Math.floor(timestamp / blockTime)
+  return Math.floor((timestamp - genesisTimestamp) / blockTime)
 }
 
 export function getFuzzyTimestampFromBlockNumber(
   blockNumber: number,
   network: SupportedNetwork
 ) {
-  const blockTime = network === "arbitrum" ? 2.3 : network === "matic" ? 0.571 : 0
-  if (!blockTime) throw new Error(`Unsupported network: ${network}`)
+  const blockTime = getBlockTime(network)
+  const genesisTimestamp = getGenesisTimestamp(network)
 
-  const genesisTImestamp =
-    network === "arbitrum" ? 1622240000 : network === "matic" ? 1590824836 : 0
-  if (!genesisTImestamp) throw new Error(`Unsupported network: ${network}`)
-
-  return blockNumber * blockTime
+  return Math.floor(genesisTimestamp + blockNumber * blockTime)
 }
 
 export function getExactBlockNumberFromTimestamp(
