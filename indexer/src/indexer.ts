@@ -137,15 +137,44 @@ export default class Indexer extends Logger {
     toBlock: number | "latest" = "latest"
   ): Promise<ParsedTransferEvent[]> {
     try {
-      const apiResponse = await axios.get<GetTransferLogsResponse>(
-        `${this.blockExplorerApiUrl}&module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&address=${contract.address}&topic1=0x0000000000000000000000000000000000000000000000000000000000000000`
-      )
+      let retry: boolean = true
+      const lastEventBlockNumberArray: number[] = []
+      const allParsedTransfers: Set<ParsedTransferEvent> = new Set([])
 
-      if (apiResponse.data.message !== "OK")
-        throw new Error(`API error: ${apiResponse?.data?.result}`)
+      if (toBlock === "latest") {
+        const latestBlockNumber = await this.provider.getBlockNumber()
+        toBlock = latestBlockNumber - 30 // 30 blocks buffer to avoid small reorgs
+      }
 
-      const parsedTransfers = apiResponse.data.result.map(parseTransferEvent)
-      return parsedTransfers
+      while (retry) {
+        const apiResponse = await axios.get<GetTransferLogsResponse>(
+          `${this.blockExplorerApiUrl}&module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&address=${contract.address}&topic1=0x0000000000000000000000000000000000000000000000000000000000000000`
+        )
+
+        if (apiResponse.data.message !== "OK")
+          throw new Error(`API error: ${apiResponse?.data?.result}`)
+
+        const apiResponseLength = apiResponse.data.result.length
+        const lastEvent = apiResponse.data.result[apiResponseLength - 1]
+        const lastEventBlockNumber = Number(lastEvent?.blockNumber.toString(16))
+        lastEventBlockNumberArray.push(lastEventBlockNumber)
+
+        if (apiResponseLength === 1000 && lastEventBlockNumber < toBlock) {
+          this.warn(`Last event block: (${lastEventBlockNumber}) < toBlock (${toBlock})`)
+          fromBlock = lastEventBlockNumber
+        } else retry = false
+
+        const tries = lastEventBlockNumberArray.length
+        if (tries >= 2 && lastEventBlockNumber === lastEventBlockNumberArray[tries - 2]) {
+          this.warn(`Last event block: (${lastEventBlockNumber}) already fetched.`)
+          return Array.from(allParsedTransfers)
+        }
+
+        const parsedTransfers = apiResponse.data.result.map(parseTransferEvent)
+        parsedTransfers.map((parsedTransfer) => allParsedTransfers.add(parsedTransfer))
+      }
+
+      return Array.from(allParsedTransfers)
     } catch (err: any) {
       this.error("Error while fetching transfer events from explorer")
       this.error(err)
