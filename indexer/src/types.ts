@@ -1,3 +1,5 @@
+export type FetchMethod = "rpc" | "explorer"
+
 export type LogLevel = "info" | "debug" | "error" | "warn" | "success" | "none"
 
 export type SupportedNetwork = "arbitrum" | "matic"

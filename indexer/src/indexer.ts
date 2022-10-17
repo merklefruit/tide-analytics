@@ -14,6 +14,7 @@ import {
 import type {
   Campaign,
   CampaignStatus,
+  FetchMethod,
   GetTransferLogsResponse,
   LogLevel,
   ParsedTransferEvent,
@@ -26,19 +27,22 @@ export default class Indexer extends Logger {
 
   public provider: ethers.providers.AlchemyProvider
   public campaigns: Campaign[] = []
+  public fetchMethod: FetchMethod
   public network: SupportedNetwork
 
   constructor(
     network: SupportedNetwork,
     alchemyKey: string,
     redisUrl?: string,
-    logLevel?: LogLevel
+    logLevel?: LogLevel,
+    fetchMethod?: FetchMethod
   ) {
     super(logLevel ?? "info")
 
     this.info(`Creating indexer for ${network}`)
 
     this.network = network
+    this.fetchMethod = fetchMethod ?? "explorer"
     this.blockExplorerApiUrl = getBlockExplorerApiUrl(network)
     this.provider = new ethers.providers.AlchemyProvider(network, alchemyKey)
 
@@ -152,7 +156,7 @@ export default class Indexer extends Logger {
   public async queryTransferEventsFromRpc(
     contract: Contract,
     fromBlock: number,
-    toBlock?: number
+    toBlock: number | "latest" = "latest"
   ): Promise<ParsedTransferEvent[]> {
     this.info(`Querying transfers from block ${fromBlock}`)
 
@@ -160,7 +164,7 @@ export default class Indexer extends Logger {
       const logs = await this.provider.getLogs({
         ...contract.filters.Transfer(),
         fromBlock,
-        toBlock: toBlock || "latest",
+        toBlock,
       })
 
       this.debug(`Found ${logs.length} transfer events`)
@@ -198,23 +202,31 @@ export default class Indexer extends Logger {
         new Date(campaign.startTime).getTime() / 1000
       )
 
-      if (!startBlock)
-        throw new Error(`Could not find start block for campaign ${campaign.id}`)
+      if (!startBlock) throw new Error(`Could not find start block for: ${campaign.id}`)
 
       if (campaignStatus === "ended") {
         endBlock = await this.getBlockNumberByTimestamp(
           new Date(campaign.endTime).getTime() / 1000
         )
 
-        if (!endBlock)
-          throw new Error(`Could not find end block for campaign ${campaign.id}`)
+        if (!endBlock) throw new Error(`Could not find end block for: ${campaign.id}`)
       }
 
-      return await this.queryTransferEventsFromExplorer(
-        campaignContract,
-        startBlock,
-        endBlock
-      )
+      switch (this.fetchMethod) {
+        case "rpc":
+          return await this.queryTransferEventsFromRpc(
+            campaignContract,
+            startBlock,
+            endBlock
+          )
+
+        case "explorer":
+          return await this.queryTransferEventsFromExplorer(
+            campaignContract,
+            startBlock,
+            endBlock
+          )
+      }
     } catch (err: any) {
       this.error(`Error while fetching transfers on ${this.network}`)
       this.error(`Campaign title: ${campaign.title}`)

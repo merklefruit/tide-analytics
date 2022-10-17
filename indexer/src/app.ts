@@ -20,8 +20,8 @@ async function main() {
     throw new Error("Missing Environment variables, check your .env file!")
 
   // Create indexers for desired networks
-  const arbitrum = new Indexer("arbitrum", ALCHEMY_ARBITRUM_KEY, REDIS_URL)
-  const matic = new Indexer("matic", ALCHEMY_MATIC_KEY, REDIS_URL)
+  const arbitrum = new Indexer("arbitrum", ALCHEMY_ARBITRUM_KEY, REDIS_URL, "info")
+  const matic = new Indexer("matic", ALCHEMY_MATIC_KEY, REDIS_URL, "info")
 
   const indexers = [arbitrum, matic]
 
