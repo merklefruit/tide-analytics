@@ -79,8 +79,10 @@ export default class Aggregator extends Logger {
     const uniqueUsers = new Set(claims.map((claim) => claim.address)).size
     claims.sort(({ date: a }, { date: b }) => a.getTime() - b.getTime())
 
-    this.stats.last20ClaimsSortedByDate = claims.reverse().slice(0, 20)
     this.stats.uniqueUsers = uniqueUsers
+    this.stats.last20ClaimsSortedByDate = claims
+      .reverse()
+      .slice(0, claims.length > 20 ? 20 : undefined)
   }
 
   private async getTop10CampaignsSortedByParticipants() {
