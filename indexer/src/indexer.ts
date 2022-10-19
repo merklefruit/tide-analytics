@@ -69,16 +69,14 @@ export default class Indexer extends Logger {
       const campaigns = campaignsResponse.data.campaigns as Campaign[]
 
       const campaignsOnCurrentNetwork: Campaign[] = campaigns
-        .filter((campaign) =>
-          campaign.chainId.includes(fromNetworkNameToChainId(this.network))
-        )
+        .filter((campaign) => campaign.chain === fromNetworkNameToChainId(this.network))
         // mapping the object from the API response to custom Campaign type
         .map((cmp) => {
           return {
             title: cmp.title,
             description: cmp.description,
             id: cmp.id,
-            chainId: cmp.chainId,
+            chain: cmp.chain,
             startTime: cmp.startTime,
             endTime: cmp.endTime,
             status: this.getCampaignStatus(cmp) || "idle",

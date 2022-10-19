@@ -8,7 +8,7 @@ export type Campaign = {
   title: string
   description: string
   id: string
-  chainId: number[]
+  chain: number
   startTime: string
   endTime: string
   projectName: string

@@ -50,7 +50,7 @@ export default class Aggregator extends Logger {
   private async getAllClaims() {
     const campaignsFullData = await Promise.all(
       this.campaigns.map(async (campaign) => {
-        const network = fromChainIdToNetworkName((campaign as any).chainId)
+        const network = fromChainIdToNetworkName(campaign.chain)
         const key = `transfers:${campaign.id}`
         const values = await this.redis.lrange(key, 0, -1)
         const parsedTransfers: ParsedTransferEvent[] = values.map(
@@ -93,7 +93,7 @@ export default class Aggregator extends Logger {
         const key = `transfers:length:${campaign.id}`
         const participants = parseInt((await this.redis.get(key)) || "0")
         const status = getCampaignStatus(campaign)
-        const network = fromChainIdToNetworkName((campaign as any).chainId)
+        const network = fromChainIdToNetworkName(campaign.chain)
         const link = `https://tideprotocol.xyz/users/campaign/${campaign.id}`
 
         return { ...campaign, participants, status, network, link }
